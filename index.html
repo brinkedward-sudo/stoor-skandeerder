@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="af">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="Skandeer strepieskodes en reeksnommers vir die Stoorkamer-voorraadopname.">
+  <title>Stoor-skandeerder</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root {
+      --agter: #111827; --paneel: #1f2937; --rand: #374151; --teks: #e5e7eb;
+      --sag: #9ca3af; --groen: #22c55e; --rooi: #ef4444; --geel: #f59e0b; --blou: #3b82f6;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--agter); color: var(--teks);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 17px; }
+    body { padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 4px 0 12px; display: flex; align-items: center; gap: 10px; }
+    h1 img { width: 32px; height: 32px; border-radius: 6px; }
+    button, select, input { font: inherit; color: inherit; }
+    button { border: 0; border-radius: 12px; padding: 14px 16px; min-height: 52px; font-weight: 600;
+      background: var(--paneel); border: 1px solid var(--rand); cursor: pointer; }
+    button:active { transform: scale(0.98); }
+    .groot { width: 100%; font-size: 1.15rem; }
+    .groen { background: var(--groen); color: #052e16; border-color: var(--groen); }
+    .rooi { background: var(--rooi); color: #fff; border-color: var(--rooi); }
+    .blou { background: var(--blou); color: #fff; border-color: var(--blou); }
+    #leser { width: 100%; margin: 10px 0; border-radius: 12px; overflow: hidden; background: #000; }
+    #leser:empty { display: none; }
+    .ry { display: flex; gap: 8px; margin: 10px 0; }
+    .ry > input { flex: 1; min-width: 0; }
+    input[type=text] { background: var(--paneel); border: 1px solid var(--rand); border-radius: 12px;
+      padding: 12px 14px; min-height: 52px; }
+    #boodskap { display: none; padding: 12px 14px; border-radius: 12px; margin: 10px 0;
+      background: #451a03; border: 1px solid var(--geel); color: #fde68a; line-height: 1.4; }
+    .teller { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
+    .teller strong { font-size: 1.15rem; }
+    .knoppe { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+    .knoppe .vol { grid-column: 1 / -1; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { background: var(--paneel); border: 1px solid var(--rand); border-radius: 12px; padding: 10px 12px;
+      margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+    li.nuut { animation: flits 1s ease-out; }
+    li.dup { animation: flitsGeel 1s ease-out; }
+    @keyframes flits { from { background: #14532d; } to { background: var(--paneel); } }
+    @keyframes flitsGeel { from { background: #78350f; } to { background: var(--paneel); } }
+    .kode { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.05rem; word-break: break-all; }
+    .meta { color: var(--sag); font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; grid-column: 1 / -1; }
+    .meta select { background: var(--agter); border: 1px solid var(--rand); border-radius: 8px; padding: 6px 8px; min-height: 38px; }
+    .wis { min-height: 44px; min-width: 44px; padding: 0; font-size: 1.2rem; background: transparent; color: var(--rooi); border-color: var(--rand); }
+    .aantal { background: var(--geel); color: #111; border-radius: 999px; padding: 1px 8px; font-weight: 700; }
+    .leeg { color: var(--sag); text-align: center; padding: 24px 8px; }
+    #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: #000; color: #fff; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--rand);
+      opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 92vw; text-align: center; z-index: 10; }
+    #toast.wys { opacity: 1; }
+    #toast.dup { border-color: var(--geel); color: #fde68a; }
+    #toast.ok { border-color: var(--groen); color: #bbf7d0; }
+    footer { color: var(--sag); font-size: 0.8rem; text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1><img src="icon-192.png" alt="">Stoor-skandeerder</h1>
+
+  <button id="skandeerKnop" class="groot groen" type="button">📷 Begin skandeer</button>
+  <div id="leser"></div>
+  <div id="boodskap" role="alert"></div>
+
+  <form class="ry" id="handVorm" autocomplete="off">
+    <input type="text" id="handInvoer" placeholder="Tik reeksnommer / kode…" autocapitalize="characters"
+           autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Reeksnommer of kode">
+    <button type="submit" class="blou">Voeg by</button>
+  </form>
+
+  <div class="teller">
+    <strong id="teller">0 items geskandeer</strong>
+  </div>
+  <div class="knoppe">
+    <button id="uitvoerKnop" type="button" class="groen">⬇️ Voer uit (CSV)</button>
+    <button id="deelKnop" type="button" hidden>📤 Deel CSV</button>
+    <button id="skoonKnop" type="button" class="rooi">🗑️ Maak lys skoon</button>
+  </div>
+
+  <ul id="lys"></ul>
+
+  <footer>Voer die CSV in by Agentkluis → Stoorkamer → Voorraadopname.</footer>
+  <div id="toast" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+  'use strict';
+
+  /* =====================================================================
+     SOORT-REËLS (wysig hier)
+     Die app raai die soort produk uit die kode. Die EERSTE reël wat pas, wen.
+     Voeg gerus nuwe reëls by soos jy patrone in die stoor herken, bv.:
+       { patroon: /^5CG/i, soort: 'Laptop' },
+     As niks pas nie, word die soort "Onbekend" (jy kan dit per ry verander).
+     ===================================================================== */
+  const rules = [
+    // Rapoo H120 oorfone – reeksnommers soos 620330H120A1xxx / 600330...H120...
+    { patroon: /H120/i,                          soort: 'Oorfoon' },
+    // Sleutelwoorde in QR-kodes / etikette (konserwatief – net duidelike woorde)
+    { patroon: /HEADSET|OORFOON|HEADPHONE/i,     soort: 'Oorfoon' },
+    { patroon: /KEYBOARD|SLEUTELBORD/i,          soort: 'Sleutelbord' },
+    { patroon: /MOUSE|\bMUIS\b/i,                soort: 'Muis' },
+    { patroon: /MONITOR|SKERM/i,                 soort: 'Skerm' },
+    { patroon: /DOCK/i,                          soort: 'Dok' },
+    { patroon: /LAPTOP|NOTEBOOK|THINKPAD|LATITUDE|ELITEBOOK|PROBOOK/i, soort: 'Laptop' },
+    { patroon: /DESKTOP|OPTIPLEX|THINKCENTRE|PRODESK|ELITEDESK/i,      soort: 'Rekenaar' }
+  ];
+
+  const SOORTE = ['Laptop', 'Rekenaar', 'Skerm', 'Muis', 'Sleutelbord', 'Oorfoon', 'Dok', 'Ander', 'Onbekend'];
+  const STOOR_SLEUTEL = 'stoorSkandeerder.lys.v1';
+  const HERHAAL_STILTE_MS = 2500; // dieselfde kode binne hierdie tyd = kamera lees dit net weer, ignoreer stil
+
+  // ---------- Hulpfunksies ----------
+  const $ = (id) => document.getElementById(id);
+  const twee = (n) => String(n).padStart(2, '0');
+  function plaaslikeTyd(d) {           // YYYY-MM-DD HH:mm (plaaslike tyd)
+    return `${d.getFullYear()}-${twee(d.getMonth() + 1)}-${twee(d.getDate())} ${twee(d.getHours())}:${twee(d.getMinutes())}`;
+  }
+  function lêernaamTyd(d) {            // YYYYMMDD-HHmm
+    return `${d.getFullYear()}${twee(d.getMonth() + 1)}${twee(d.getDate())}-${twee(d.getHours())}${twee(d.getMinutes())}`;
+  }
+  function raaiSoort(kode) {
+    for (const r of rules) { if (r.patroon.test(kode)) return r.soort; }
+    return 'Onbekend';
+  }
+
+  // ---------- Data (gestoor in localStorage) ----------
+  let items = [];   // nuutste eerste: { kode, formaat, soort, tyd, aantal }
+  function laai() {
+    try { items = JSON.parse(localStorage.getItem(STOOR_SLEUTEL)) || []; } catch (e) { items = []; }
+    if (!Array.isArray(items)) items = [];
+  }
+  function stoor() {
+    try { localStorage.setItem(STOOR_SLEUTEL, JSON.stringify(items)); } catch (e) { wysToast('Kon nie die lys stoor nie', 'dup'); }
+  }
+
+  // ---------- Terugvoer: klank, vibrasie, toast ----------
+  let klankKonteks = null;
+  function piep(freq, ms) {
+    try {
+      klankKonteks = klankKonteks || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = klankKonteks.createOscillator(), wins = klankKonteks.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq; wins.gain.value = 0.15;
+      osc.connect(wins); wins.connect(klankKonteks.destination);
+      osc.start(); osc.stop(klankKonteks.currentTime + ms / 1000);
+    } catch (e) { /* geen klank nie – nie erg nie */ }
+  }
+  function vibreer(patroon) { if (navigator.vibrate) navigator.vibrate(patroon); }
+  let toastTyd = null;
+  function wysToast(teks, soort) {
+    const t = $('toast');
+    t.textContent = teks; t.className = 'wys ' + (soort || '');
+    clearTimeout(toastTyd); toastTyd = setTimeout(() => { t.className = ''; }, 1800);
+  }
+  function wysBoodskap(teks) { const b = $('boodskap'); b.textContent = teks; b.style.display = teks ? 'block' : 'none'; }
+
+  // ---------- Voeg 'n kode by (kamera of handmatig) ----------
+  let laasteKode = '', laasteTyd = 0;
+  function voegBy(rou, formaat, vanKamera) {
+    const kode = String(rou || '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+    if (!kode) return;
+    const nou = Date.now();
+    if (vanKamera && kode === laasteKode && nou - laasteTyd < HERHAAL_STILTE_MS) { laasteTyd = nou; return; }
+    laasteKode = kode; laasteTyd = nou;
+
+    const bestaande = items.find((i) => i.kode === kode);
+    if (bestaande) {
+      bestaande.aantal = (bestaande.aantal || 1) + 1;
+      stoor(); teken(kode, 'dup');
+      wysToast('Reeds geskandeer: ' + kode, 'dup');
+      vibreer([60, 60, 60, 60, 60]); piep(330, 250);
+      return;
+    }
+    items.unshift({ kode, formaat: formaat || 'handmatig', soort: raaiSoort(kode), tyd: plaaslikeTyd(new Date()), aantal: 1 });
+    stoor(); teken(kode, 'nuut');
+    wysToast('✔ ' + kode, 'ok');
+    vibreer(120); piep(1200, 120);
+  }
+
+  // ---------- Teken die lys ----------
+  function teken(uitlig, klas) {
+    const lys = $('lys');
+    lys.textContent = '';
+    $('teller').textContent = items.length === 1 ? '1 item geskandeer' : `${items.length} items geskandeer`;
+    if (!items.length) {
+      const li = document.createElement('li'); li.className = 'leeg'; li.style.display = 'block';
+      li.textContent = 'Nog niks geskandeer nie. Druk "Begin skandeer" of tik \'n reeksnommer.';
+      lys.appendChild(li); return;
+    }
+    items.forEach((item, idx) => {
+      const li = document.createElement('li');
+      if (item.kode === uitlig) li.className = klas;
+
+      const kode = document.createElement('div'); kode.className = 'kode'; kode.textContent = item.kode;
+      const wis = document.createElement('button'); wis.className = 'wis'; wis.type = 'button';
+      wis.textContent = '✕'; wis.setAttribute('aria-label', 'Verwyder ' + item.kode);
+      wis.onclick = () => { items.splice(idx, 1); stoor(); teken(); };
+
+      const meta = document.createElement('div'); meta.className = 'meta';
+      const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Soort');
+      SOORTE.forEach((s) => { const o = document.createElement('option'); o.value = o.textContent = s; sel.appendChild(o); });
+      sel.value = SOORTE.includes(item.soort) ? item.soort : 'Onbekend';
+      sel.onchange = () => { item.soort = sel.value; stoor(); };
+      const fmt = document.createElement('span'); fmt.textContent = item.formaat;
+      const tyd = document.createElement('span'); tyd.textContent = item.tyd;
+      meta.append('Soort:', sel, fmt, tyd);
+      if (item.aantal > 1) { const a = document.createElement('span'); a.className = 'aantal'; a.textContent = '×' + item.aantal; meta.appendChild(a); }
+
+      li.append(kode, wis, meta);
+      lys.appendChild(li);
+    });
+  }
+
+  // ---------- CSV-uitvoer ----------
+  function csvVeld(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\r\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function maakCsv() {
+    const rye = [['kode', 'reeksnommer', 'soort', 'formaat', 'geskandeer']];
+    // Uitvoer in skandeer-volgorde (oudste eerste)
+    items.slice().reverse().forEach((i) => rye.push([i.kode, i.kode, i.soort, i.formaat, i.tyd]));
+    return '\uFEFF' + rye.map((r) => r.map(csvVeld).join(',')).join('\r\n') + '\r\n';
+  }
+  function csvLêer() {
+    const naam = `skandering-${lêernaamTyd(new Date())}.csv`;
+    return { naam, blob: new Blob([maakCsv()], { type: 'text/csv;charset=utf-8' }) };
+  }
+  $('uitvoerKnop').onclick = () => {
+    if (!items.length) { wysToast('Die lys is leeg – niks om uit te voer nie', 'dup'); return; }
+    const { naam, blob } = csvLêer();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = naam;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    wysToast('Gestoor: ' + naam, 'ok');
+  };
+  // "Deel" (bv. e-pos / WhatsApp na jouself) – net as die foon dit ondersteun
+  (function () {
+    try {
+      const toets = new File(['x'], 't.csv', { type: 'text/csv' });
+      if (navigator.canShare && navigator.canShare({ files: [toets] })) $('deelKnop').hidden = false;
+    } catch (e) { /* nie ondersteun nie */ }
+  })();
+  $('deelKnop').onclick = async () => {
+    if (!items.length) { wysToast('Die lys is leeg – niks om te deel nie', 'dup'); return; }
+    const { naam, blob } = csvLêer();
+    try { await navigator.share({ files: [new File([blob], naam, { type: 'text/csv' })], title: naam }); }
+    catch (e) { if (e.name !== 'AbortError') wysToast('Kon nie deel nie', 'dup'); }
+  };
+
+  $('skoonKnop').onclick = () => {
+    if (!items.length) return;
+    if (confirm(`Is jy seker jy wil al ${items.length} items uit die lys verwyder?\n\nVoer eers uit as jy dit nog nodig het.`)) {
+      items = []; stoor(); teken(); wysToast('Lys skoongemaak');
+    }
+  };
+
+  // ---------- Handmatige invoer (en Bluetooth/USB-"sleutelbord"-skandeerders) ----------
+  $('handVorm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const inv = $('handInvoer');
+    voegBy(inv.value, 'handmatig', false);
+    inv.value = ''; inv.focus();
+  });
+
+  // ---------- Kamera-skandering ----------
+  let leser = null, skandeerAan = false;
+  function formaatNaam(res) {
+    try { return res.result.format.formatName || 'onbekend'; } catch (e) { return 'onbekend'; }
+  }
+  function kameraFout(fout) {
+    let teks = 'Kon nie die kamera oopmaak nie. ';
+    const n = fout && (fout.name || String(fout));
+    if (/NotAllowed|Permission/i.test(n)) teks += 'Kamera-toegang is geweier. ';
+    else if (/NotFound|Overconstrained/i.test(n)) teks += 'Geen (agter-)kamera gevind nie. ';
+    else if (/NotReadable/i.test(n)) teks += '\'n Ander app gebruik dalk die kamera. ';
+    teks += 'Gee asseblief toestemming vir die kamera (tik op die slot-ikoon langs die adres → Toestemmings → Kamera → Laat toe) ' +
+            'en maak seker die blad is oop oor https:// . Jy kan intussen die reeksnommer hieronder intik.';
+    wysBoodskap(teks);
+  }
+  async function beginSkandeer() {
+    wysBoodskap('');
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      wysBoodskap('Die kamera is nie beskikbaar nie. Die blad moet oor https:// oopgemaak word (nie as \'n lêer nie). Jy kan die reeksnommer hieronder intik.');
+      return;
+    }
+    if (typeof Html5Qrcode === 'undefined') {
+      wysBoodskap('Die skandeer-biblioteek het nie gelaai nie (geen internet met die eerste oopmaak nie?). Koppel aan die internet en herlaai die blad. Jy kan intussen die reeksnommer intik.');
+      return;
+    }
+    if (!leser) {
+      const F = Html5QrcodeSupportedFormats;
+      leser = new Html5Qrcode('leser', {
+        verbose: false,
+        formatsToSupport: [F.QR_CODE, F.CODE_128, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_39],
+        useBarCodeDetectorIfSupported: true,                       // Chrome op Android se vinnige ingeboude leser
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      });
+    }
+    const knop = $('skandeerKnop');
+    knop.disabled = true;
+    try {
+      await leser.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          // Breë raam sodat lang 1D-strepieskodes (reeksnommers) inpas
+          qrbox: (w, h) => ({ width: Math.max(50, Math.floor(w * 0.9)), height: Math.max(50, Math.floor(Math.min(h * 0.6, w * 0.5))) })
+        },
+        (teks, res) => voegBy(teks, formaatNaam(res), true),
+        () => { /* geen kode in hierdie raam nie – ignoreer */ }
+      );
+      skandeerAan = true;
+      knop.textContent = '⏹ Stop skandeer'; knop.className = 'groot rooi';
+    } catch (fout) {
+      kameraFout(fout);
+    } finally { knop.disabled = false; }
+  }
+  async function stopSkandeer() {
+    const knop = $('skandeerKnop');
+    try { if (leser) { await leser.stop(); leser.clear(); } } catch (e) { /* reeds gestop */ }
+    skandeerAan = false;
+    knop.textContent = '📷 Begin skandeer'; knop.className = 'groot groen';
+  }
+  $('skandeerKnop').onclick = () => (skandeerAan ? stopSkandeer() : beginSkandeer());
+  // Stop die kamera as die app na die agtergrond gaan (spaar battery)
+  document.addEventListener('visibilitychange', () => { if (document.hidden && skandeerAan) stopSkandeer(); });
+
+  // ---------- Begin ----------
+  laai(); teken();
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+  }
+  </script>
+</body>
+</html>
