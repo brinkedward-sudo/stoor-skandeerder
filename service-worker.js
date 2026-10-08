@@ -1,6 +1,6 @@
 /* Stoor-skandeerder – eenvoudige "cache-first" service worker.
    Verhoog KAS_NAAM se weergawe wanneer jy lêers verander, sodat die foon die nuwe weergawe laai. */
-const KAS_NAAM = 'stoor-skandeerder-v1';
+const KAS_NAAM = 'stoor-skandeerder-v2';
 const LIB_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const LEERS = [
   './',

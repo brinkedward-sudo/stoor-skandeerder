@@ -28,8 +28,9 @@
     .groen { background: var(--groen); color: #052e16; border-color: var(--groen); }
     .rooi { background: var(--rooi); color: #fff; border-color: var(--rooi); }
     .blou { background: var(--blou); color: #fff; border-color: var(--blou); }
-    #leser { width: 100%; margin: 10px 0; border-radius: 12px; overflow: hidden; background: #000; }
-    #leser:empty { display: none; }
+    #leser { width: 100%; margin: 10px 0; border-radius: 12px; overflow: hidden; background: #000; display: none; min-height: 60px; }
+    #leser.aan { display: block; }
+    #leser video { width: 100% !important; height: auto !important; display: block; }
     .ry { display: flex; gap: 8px; margin: 10px 0; }
     .ry > input { flex: 1; min-width: 0; }
     input[type=text] { background: var(--paneel); border: 1px solid var(--rand); border-radius: 12px;
@@ -296,37 +297,65 @@
       wysBoodskap('Die skandeer-biblioteek het nie gelaai nie (geen internet met die eerste oopmaak nie?). Koppel aan die internet en herlaai die blad. Jy kan intussen die reeksnommer intik.');
       return;
     }
+    const knop = $('skandeerKnop');
+    knop.disabled = true;
+    wysBoodskap('Kamera begin…');
+
+    // Maak die kamera-raam sigbaar VOOR start() sodat die biblioteek die
+    // korrekte breedte kan meet; anders bly die video leeg (die ou fout).
+    const raam = $('leser');
+    raam.classList.add('aan');
+    void raam.offsetHeight; // dwing 'n uitleg af
+
     if (!leser) {
       const F = Html5QrcodeSupportedFormats;
       leser = new Html5Qrcode('leser', {
         verbose: false,
         formatsToSupport: [F.QR_CODE, F.CODE_128, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_39],
-        useBarCodeDetectorIfSupported: true,                       // Chrome op Android se vinnige ingeboude leser
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       });
     }
-    const knop = $('skandeerKnop');
-    knop.disabled = true;
+    const konfig = {
+      fps: 10,
+      // Breë raam sodat lang 1D-strepieskodes (reeksnommers) inpas
+      qrbox: (w, h) => ({
+        width: Math.max(120, Math.floor(w * 0.9)),
+        height: Math.max(90, Math.floor(Math.min(h * 0.65, 240)))
+      })
+    };
+    const opKode = (teks, res) => voegBy(teks, formaatNaam(res), true);
+    const opMis = () => { /* geen kode in hierdie raam nie */ };
+
     try {
-      await leser.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          // Breë raam sodat lang 1D-strepieskodes (reeksnommers) inpas
-          qrbox: (w, h) => ({ width: Math.max(50, Math.floor(w * 0.9)), height: Math.max(50, Math.floor(Math.min(h * 0.6, w * 0.5))) })
-        },
-        (teks, res) => voegBy(teks, formaatNaam(res), true),
-        () => { /* geen kode in hierdie raam nie – ignoreer */ }
-      );
+      // Kies die agter-kamera eksplisiet waar moontlik (betroubaarder as net facingMode).
+      let kameraId = null;
+      try {
+        const kameras = await Html5Qrcode.getCameras();
+        if (kameras && kameras.length) {
+          const agter = kameras.find((c) => /back|rear|environment|agter/i.test(c.label || ''));
+          kameraId = (agter || kameras[kameras.length - 1]).id;
+        }
+      } catch (e) { /* kon nie kameras lys nie – val terug op facingMode */ }
+
+      const bron = kameraId ? kameraId : { facingMode: { ideal: 'environment' } };
+      try {
+        await leser.start(bron, konfig, opKode, opMis);
+      } catch (e1) {
+        // Laaste uitweg: enige kamera met facingMode-wenk
+        await leser.start({ facingMode: 'environment' }, konfig, opKode, opMis);
+      }
       skandeerAan = true;
+      wysBoodskap('');
       knop.textContent = '⏹ Stop skandeer'; knop.className = 'groot rooi';
     } catch (fout) {
+      raam.classList.remove('aan');
       kameraFout(fout);
     } finally { knop.disabled = false; }
   }
   async function stopSkandeer() {
     const knop = $('skandeerKnop');
     try { if (leser) { await leser.stop(); leser.clear(); } } catch (e) { /* reeds gestop */ }
+    $('leser').classList.remove('aan');
     skandeerAan = false;
     knop.textContent = '📷 Begin skandeer'; knop.className = 'groot groen';
   }
