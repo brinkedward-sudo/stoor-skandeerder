@@ -1,6 +1,6 @@
 /* Stoor-skandeerder – eenvoudige "cache-first" service worker.
    Verhoog KAS_NAAM se weergawe wanneer jy lêers verander, sodat die foon die nuwe weergawe laai. */
-const KAS_NAAM = 'stoor-skandeerder-v2';
+const KAS_NAAM = 'stoor-skandeerder-v3';
 const LIB_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 const LEERS = [
   './',
@@ -26,23 +26,24 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// "Network-first": probeer altyd die nuutste van die web af, val terug op die
+// kas as daar geen internet is nie. So bly die app aanlyn altyd op datum, maar
+// werk steeds vanlyn.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((gekas) => {
-      if (gekas) return gekas;
-      return fetch(e.request).then((antw) => {
-        // Kas nuwe suksesvolle antwoorde van ons eie webwerf of die biblioteek
-        if (antw && antw.ok && (e.request.url.startsWith(self.location.origin) || e.request.url === LIB_URL)) {
-          const kopie = antw.clone();
-          caches.open(KAS_NAAM).then((kas) => kas.put(e.request, kopie));
-        }
-        return antw;
-      }).catch(() => {
-        // Aflyn en nie in kas nie: gee die app-blad vir navigasies
+    fetch(e.request).then((antw) => {
+      if (antw && antw.ok && (e.request.url.startsWith(self.location.origin) || e.request.url === LIB_URL)) {
+        const kopie = antw.clone();
+        caches.open(KAS_NAAM).then((kas) => kas.put(e.request, kopie));
+      }
+      return antw;
+    }).catch(() =>
+      caches.match(e.request, { ignoreSearch: true }).then((gekas) => {
+        if (gekas) return gekas;
         if (e.request.mode === 'navigate') return caches.match('./index.html');
         return Response.error();
-      });
-    })
+      })
+    )
   );
 });

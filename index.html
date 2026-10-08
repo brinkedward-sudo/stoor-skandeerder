@@ -28,9 +28,8 @@
     .groen { background: var(--groen); color: #052e16; border-color: var(--groen); }
     .rooi { background: var(--rooi); color: #fff; border-color: var(--rooi); }
     .blou { background: var(--blou); color: #fff; border-color: var(--blou); }
-    #leser { width: 100%; margin: 10px 0; border-radius: 12px; overflow: hidden; background: #000; display: none; min-height: 60px; }
-    #leser.aan { display: block; }
-    #leser video { width: 100% !important; height: auto !important; display: block; }
+    #leser { width: 100%; margin: 10px 0; border-radius: 12px; overflow: hidden; background: #000; display: none; }
+    #leser.aan { display: block; min-height: 260px; }
     .ry { display: flex; gap: 8px; margin: 10px 0; }
     .ry > input { flex: 1; min-width: 0; }
     input[type=text] { background: var(--paneel); border: 1px solid var(--rand); border-radius: 12px;
@@ -315,14 +314,9 @@
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       });
     }
-    const konfig = {
-      fps: 10,
-      // Breë raam sodat lang 1D-strepieskodes (reeksnommers) inpas
-      qrbox: (w, h) => ({
-        width: Math.max(120, Math.floor(w * 0.9)),
-        height: Math.max(90, Math.floor(Math.min(h * 0.65, 240)))
-      })
-    };
+    // Geen qrbox nie: skandeer die hele raam (betroubaarste vertoning, en lees
+    // ook lang 1D-strepieskodes). aspectRatio hou die video netjies.
+    const konfig = { fps: 10, aspectRatio: 1.3333 };
     const opKode = (teks, res) => voegBy(teks, formaatNaam(res), true);
     const opMis = () => { /* geen kode in hierdie raam nie */ };
 
@@ -347,6 +341,13 @@
       skandeerAan = true;
       wysBoodskap('');
       knop.textContent = '⏹ Stop skandeer'; knop.className = 'groot rooi';
+      // Kontroleer ná 'n oomblik of die video werklik beelde wys
+      setTimeout(() => {
+        const v = raam.querySelector('video');
+        if (!v || !v.videoWidth) {
+          wysBoodskap('Die kamera het begin, maar wys nie \'n beeld nie. Probeer: maak enige ander app toe wat die kamera gebruik, of tik op die slot-ikoon langs die adres → Toestemmings → Kamera → Laat toe, en herlaai. Jy kan intussen die reeksnommer intik.');
+        }
+      }, 1500);
     } catch (fout) {
       raam.classList.remove('aan');
       kameraFout(fout);
